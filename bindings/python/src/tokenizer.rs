@@ -84,7 +84,48 @@ impl Tokenizer {
         let text = std::fs::read_to_string(&path).map_err(|e| {
             std::io::Error::new(e.kind(), format!("cannot read {}: {e}", path.display()))
         })?;
-        Ok(Self::new(TokenizerSpec::from_json(&text).map_err(err)?))
+        Self::from_str(&text)
+    }
+
+    /// Loads a `tokenizer.json` from its content.
+    ///
+    /// Args:
+    ///     json:
+    ///         The content of a `tokenizer.json`.
+    #[staticmethod]
+    #[pyo3(signature = (json))]
+    fn from_str(json: &str) -> PyResult<Self> {
+        Ok(Self::new(TokenizerSpec::from_json(json).map_err(err)?))
+    }
+
+    /// Writes the tokenizer as the content of a `tokenizer.json`.
+    ///
+    /// Args:
+    ///     pretty:
+    ///         Whether to indent the JSON.
+    #[pyo3(signature = (pretty=false))]
+    fn to_str(&self, pretty: bool) -> String {
+        let file = Value::Object(self.spec().to_object());
+        if pretty {
+            serde_json::to_string_pretty(&file).expect("a serde_json::Value always serializes")
+        } else {
+            file.to_string()
+        }
+    }
+
+    /// Writes the tokenizer to a `tokenizer.json` file.
+    ///
+    /// Args:
+    ///     path:
+    ///         The file to write.
+    ///     pretty:
+    ///         Whether to indent the JSON.
+    #[pyo3(signature = (path, pretty=true))]
+    fn save(&self, path: PathBuf, pretty: bool) -> PyResult<()> {
+        std::fs::write(&path, self.to_str(pretty)).map_err(|e| {
+            std::io::Error::new(e.kind(), format!("cannot write {}: {e}", path.display()))
+        })?;
+        Ok(())
     }
 
     /// Instantiate a new `Tokenizer` from an existing file on the Hugging Face Hub.
@@ -257,16 +298,12 @@ impl Tokenizer {
         self.__copy__()
     }
 
-    /// Pickle rebuilds a `Tokenizer` by calling `_unpickle` with these arguments.
+    /// Pickle rebuilds a `Tokenizer` by calling `from_str` with these arguments.
     fn __reduce__<'py>(&self, py: Python<'py>) -> PyResult<(Bound<'py, PyAny>, (String,))> {
-        let json = self.spec().to_json();
-        Ok((py.get_type::<Self>().getattr("_unpickle")?, (json,)))
-    }
-
-    /// Unpickles a `Tokenizer`
-    #[staticmethod]
-    fn _unpickle(json: &str) -> PyResult<Self> {
-        Ok(Self::new(TokenizerSpec::from_json(json).map_err(err)?))
+        Ok((
+            py.get_type::<Self>().getattr("from_str")?,
+            (self.to_str(false),),
+        ))
     }
 
     fn __repr__(&self) -> String {
@@ -384,10 +421,6 @@ impl TokenizerSpec {
             model: JsonObject::clone(&self.model.json()),
         }
         .into_object()
-    }
-
-    fn to_json(&self) -> String {
-        Value::Object(self.to_object()).to_string()
     }
 }
 
