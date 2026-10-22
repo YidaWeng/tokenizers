@@ -317,7 +317,7 @@ impl Tokenizer {
     }
 }
 
-type JsonObject = Map<String, Value>;
+pub(crate) type JsonObject = Map<String, Value>;
 
 /// Holds the specification (json) of a [`PipelineTokenizer`].
 pub(crate) struct TokenizerSpec {
