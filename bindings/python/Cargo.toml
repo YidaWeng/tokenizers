@@ -21,6 +21,8 @@ pyo3 = { version = "=0.29", default-features = false, features = [
 ] }
 #TODO: this will be a soft dependency later on IMO.
 numpy = "=0.29"
+# `Precompiled` writes its charsmap as base64, like tk-serialize reads it.
+base64 = "0.22"
 serde = "1.0"
 # `preserve_order` is required for `repr` and the pickle to keep the key order of the `tokenizer.json`
 # unsloth relies on key order to fix tokenizers:
